@@ -1,0 +1,418 @@
+# 🚀 DEPLOYMENT GUIDE - COMPLETE WALKTHROUGH
+
+Follow these steps to deploy your automation system to Google Cloud Run!
+
+---
+
+## ✅ PREREQUISITES CHECKLIST
+
+Before starting, make sure you have:
+
+- [x] GitHub account (logged in)
+- [x] GitHub repository created: https://github.com/kartavyasimpplifit/zoho-whatsapp-automation
+- [x] Google Cloud account with billing enabled
+- [x] Cloud Run API enabled
+- [x] All credentials ready:
+  - Zoho: Client ID, Secret, Refresh Token
+  - AiSensy: API Key, Campaign Name
+  - Google: Service account JSON, Sheet URL
+  - Email: Report recipient email
+
+---
+
+## 📦 STEP 1: UPLOAD FILES TO GITHUB (5 minutes)
+
+### Option A: Via GitHub Web Interface (Easiest)
+
+1. Go to: https://github.com/kartavyasimpplifit/zoho-whatsapp-automation
+
+2. Click **"Add file"** → **"Upload files"**
+
+3. Drag and drop ALL these files:
+   - main.py
+   - zoho_integration.py
+   - aisensy_integration.py
+   - sheets_tracker.py
+   - email_reports.py
+   - requirements.txt
+   - Dockerfile
+   - .gitignore
+   - .env.example
+   - README.md
+
+4. Commit message: "Initial commit - Complete automation system"
+
+5. Click **"Commit changes"**
+
+### Option B: Via Git Command Line
+
+```bash
+# Clone your repository
+git clone https://github.com/kartavyasimpplifit/zoho-whatsapp-automation.git
+cd zoho-whatsapp-automation
+
+# Copy all files to this directory
+# (copy the files you downloaded)
+
+# Add and commit
+git add .
+git commit -m "Initial commit - Complete automation system"
+git push
+```
+
+---
+
+## 🌐 STEP 2: DEPLOY TO CLOUD RUN (10 minutes)
+
+### 2.1: Go to Cloud Run
+
+Open: https://console.cloud.google.com/run?project=zoho-whatsapp-integration
+
+### 2.2: Create Service
+
+1. Click **"CREATE SERVICE"** button
+
+2. Choose: **"Continuously deploy new revisions from a source repository"**
+
+3. Click **"SET UP WITH CLOUD BUILD"**
+
+### 2.3: Connect GitHub
+
+1. Click **"GitHub"**
+
+2. If not connected:
+   - Click **"CONNECT"**
+   - Authorize Google Cloud Build
+   - Select your GitHub account
+
+3. Select repository: **kartavyasimpplifit/zoho-whatsapp-automation**
+
+4. Branch: **main** (or master)
+
+5. Build type: **Dockerfile**
+
+6. Dockerfile location: **/Dockerfile**
+
+7. Click **"NEXT"**
+
+### 2.4: Configure Service
+
+**Service name:** `zoho-whatsapp-automation`
+
+**Region:** `us-central1` (or closest to India: `asia-south1`)
+
+**CPU allocation:** CPU is only allocated during request processing
+
+**Autoscaling:**
+- Minimum instances: **0**
+- Maximum instances: **10**
+
+**Authentication:** ☑️ **Allow unauthenticated invocations**
+
+**Container port:** `8080`
+
+### 2.5: Set Environment Variables
+
+Click **"CONTAINER, VARIABLES & SECRETS, CONNECTIONS, SECURITY"** tab
+
+Go to **"Variables & Secrets"** section
+
+Click **"+ ADD VARIABLE"** for each:
+
+```
+ZOHO_CLIENT_ID = 1000.28T7ZV9M2HW0ZWNA8JRZ2M9I2GYJVA
+ZOHO_CLIENT_SECRET = 9e7b2561b5dadd1c22e5f803134ea58a8fa7694e24
+ZOHO_REFRESH_TOKEN = 1000.b07495c08fcecbff6a69683e47f7217b.609d217ad5a0ff1c849e884c28fbf5b2
+ZOHO_DOMAIN = zoho.in
+
+AISENSY_API_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NjIzMjYzYzE3MTg2MGQ1MTA1OTA2YiIsIm5hbWUiOiJUZWNoY2xlYW4gSW5ub3ZhdGlvbnMgcHJpdmF0ZSBsaW1pdGVkIiwiYXBwTmFtZSI6IkFpU2Vuc3kiLCJjbGllbnRJZCI6IjY5NjIzMjYzYzE3MTg2MGQ1MTA1OTA2NiIsImFjdGl2ZVBsYW4iOiJGUkVFX0ZPUkVWRVIiLCJpYXQiOjE3NjgwNDMxMDd9.YL-6I4ZHityG7WIqe-f7UIMb6raQ41GfB-aVWR9Vppo
+AISENSY_CAMPAIGN_NAME = techclean_first_campaign
+
+GOOGLE_SHEET_URL = https://docs.google.com/spreadsheets/d/1SxxssXpWb3lX3Wip1mCXClitSFZ1YGcooX52VN3X4FU/edit
+
+REPORT_EMAIL = hello.tcinnovations@gmail.com
+
+NEW_LEAD_TEMPLATE = your_template_name_when_approved
+
+PORT = 8080
+```
+
+**For GOOGLE_CREDENTIALS_JSON:**
+- Copy the ENTIRE contents of your `zoho-whatsapp-integration-010644b05445.json` file
+- Paste as ONE LINE (remove line breaks)
+- It should look like: `{"type":"service_account","project_id":"zoho-whatsapp-integration",...}`
+
+### 2.6: Create Service
+
+1. Click **"CREATE"** button at the bottom
+
+2. Wait 2-5 minutes for deployment
+
+3. You'll see a URL like: `https://zoho-whatsapp-automation-xxxxx-uc.a.run.app`
+
+4. **COPY THIS URL!** You'll need it!
+
+---
+
+## 🔗 STEP 3: UPDATE APPROVAL URL (2 minutes)
+
+1. Go back to your Cloud Run service
+
+2. Click **"EDIT & DEPLOY NEW REVISION"**
+
+3. Go to **"Variables & Secrets"**
+
+4. Click **"+ ADD VARIABLE"**
+
+5. Add:
+   ```
+   APPROVAL_BASE_URL = https://your-actual-service-url.run.app
+   ```
+   (Use the URL from Step 2.6)
+
+6. Click **"DEPLOY"**
+
+---
+
+## 📞 STEP 4: SET UP ZOHO WEBHOOK (3 minutes)
+
+### 4.1: Go to Zoho CRM
+
+1. Login to: https://crm.zoho.in
+
+2. Click **gear icon** (⚙️) → **Setup**
+
+3. Go to: **Automation** → **Actions** → **Webhooks**
+
+### 4.2: Create Webhook
+
+1. Click **"+ Configure Webhook"**
+
+2. Fill in:
+   - **Name:** `WhatsApp New Lead Notification`
+   - **Description:** `Sends WhatsApp when new lead is created`
+   - **Module:** `Leads`
+   - **Method:** `POST`
+   - **URL Format:** `REST API`
+   - **URL:** `https://your-service-url.run.app/webhook/zoho`
+     (Use your actual Cloud Run URL)
+
+3. Click **"Save"**
+
+### 4.3: Create Workflow Rule
+
+1. Go to: **Setup** → **Automation** → **Workflow Rules**
+
+2. Click **"Create Rule"**
+
+3. Fill in:
+   - **Module:** `Leads`
+   - **Rule Name:** `New Lead WhatsApp`
+   - **Description:** `Trigger webhook for new leads`
+   - **When:** `Record Action` → `is` → `Created`
+   - **Condition:** Leave empty (or add specific conditions)
+
+4. Click **"Next"**
+
+5. Under **"Instant Actions"**:
+   - Click **"Webhooks"**
+   - Select: `WhatsApp New Lead Notification`
+
+6. Click **"Save"**
+
+---
+
+## ✅ STEP 5: TEST THE SYSTEM (5 minutes)
+
+### Test 1: Health Check
+
+Open in browser:
+```
+https://your-service-url.run.app/
+```
+
+You should see:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-01-21T...",
+  "service": "Zoho-WhatsApp Automation"
+}
+```
+
+### Test 2: Create Test Lead
+
+1. Go to Zoho CRM → Leads
+
+2. Click **"+ Create Lead"**
+
+3. Fill in:
+   - **First Name:** Test
+   - **Last Name:** Lead
+   - **Company:** Test Company
+   - **Phone:** +91-7014155925 (your test number)
+   - **Lead Source:** Website
+   - **Lead Status:** Not Contacted
+
+4. Click **"Save"**
+
+5. Check:
+   - ✅ Your WhatsApp (should receive message if template is approved)
+   - ✅ Google Sheets (new row added)
+   - ✅ Zoho Lead (note added)
+
+### Test 3: Daily Report
+
+Trigger manually:
+```bash
+curl -X POST https://your-service-url.run.app/daily-report
+```
+
+Check your email for the report!
+
+---
+
+## 📊 STEP 6: VERIFY GOOGLE SHEETS (1 minute)
+
+1. Open: https://docs.google.com/spreadsheets/d/1SxxssXpWb3lX3Wip1mCXClitSFZ1YGcooX52VN3X4FU/edit
+
+2. You should see 2 worksheets:
+   - **Message Log** - All messages sent
+   - **Summary** - Daily rollup
+
+3. If test worked, you should see a row in Message Log
+
+---
+
+## 🎉 SUCCESS! YOUR SYSTEM IS LIVE!
+
+### What Happens Now:
+
+**Automatically (24/7):**
+- ✅ New leads in Zoho → Instant WhatsApp
+- ✅ Tracked in Google Sheets
+- ✅ Notes added to Zoho
+
+**Daily (9 AM):**
+- ✅ Cohort analysis email sent
+- ✅ Click links to approve campaigns
+- ✅ Summary emails after campaigns
+
+---
+
+## 📈 MONITORING
+
+### View Logs
+
+Go to: https://console.cloud.google.com/run/detail/us-central1/zoho-whatsapp-automation/logs
+
+### Check Metrics
+
+Go to: https://console.cloud.google.com/run/detail/us-central1/zoho-whatsapp-automation/metrics
+
+### Email Notifications
+
+You'll receive:
+- Daily reports at 9 AM
+- Campaign completion summaries
+- Error notifications (if any)
+
+---
+
+## 🔧 TROUBLESHOOTING
+
+### Deployment Failed
+
+**Check:**
+- All files uploaded to GitHub?
+- Dockerfile present?
+- requirements.txt correct?
+
+**Solution:** Review Cloud Build logs
+
+### Webhook Not Triggering
+
+**Check:**
+- Webhook URL correct?
+- Workflow rule active?
+- Test by creating a lead
+
+**Solution:** Check Cloud Run logs
+
+### WhatsApp Not Sending
+
+**Check:**
+- Template approved in AiSensy?
+- Campaign LIVE?
+- NEW_LEAD_TEMPLATE set correctly?
+
+**Solution:** Set NEW_LEAD_TEMPLATE after approval
+
+### Sheets Not Updating
+
+**Check:**
+- Service account has Editor access?
+- GOOGLE_CREDENTIALS_JSON correct (single line)?
+- Sheet URL correct?
+
+**Solution:** Re-share sheet with service account
+
+### Daily Email Not Received
+
+**Check:**
+- REPORT_EMAIL correct?
+- Check spam folder
+- Try manual trigger
+
+**Solution:** Email is non-critical, check logs
+
+---
+
+## 🔄 MAKING CHANGES
+
+### Update Environment Variable
+
+1. Go to Cloud Run service
+2. Click **"EDIT & DEPLOY NEW REVISION"**
+3. Update variable
+4. Click **"DEPLOY"**
+
+### Update Code
+
+1. Make changes in GitHub
+2. Commit and push
+3. Cloud Build auto-deploys!
+4. Check logs to verify
+
+---
+
+## 💰 COST ESTIMATE
+
+**Google Cloud Run:**
+- Requests: ~10,000/month
+- Cost: **$0/month** (within free tier)
+
+**Google Sheets API:**
+- Cost: **$0/month** (free)
+
+**Total: $0/month** ✅
+
+---
+
+## 📞 NEED HELP?
+
+- **GitHub Issues:** https://github.com/kartavyasimpplifit/zoho-whatsapp-automation/issues
+- **Email:** hello.tcinnovations@gmail.com
+- **Logs:** Check Cloud Run logs first!
+
+---
+
+## 🎊 CONGRATULATIONS!
+
+Your fully automated Zoho → WhatsApp system is now LIVE! 🚀
+
+Every new lead will instantly receive a WhatsApp message, be tracked in Sheets, and updated in Zoho - completely automatically!
+
+You'll receive daily reports to manage follow-ups and campaigns.
+
+**Enjoy your automation!** 🎉
