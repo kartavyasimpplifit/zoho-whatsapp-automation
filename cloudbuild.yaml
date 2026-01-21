@@ -1,0 +1,30 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/zoho-whatsapp-automation', '.']
+  
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/zoho-whatsapp-automation']
+  
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'zoho-whatsapp-automation'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/zoho-whatsapp-automation'
+      - '--region'
+      - 'asia-south2'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+
+# Logging configuration - this fixes the error!
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+# Service account
+serviceAccount: 'projects/zoho-whatsapp-integration/serviceAccounts/44135938385-compute@developer.gserviceaccount.com'
