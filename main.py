@@ -7,7 +7,7 @@ Handles webhooks, scheduled tasks, and orchestration
 from flask import Flask, request, jsonify
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import threading
 import time
 
@@ -130,7 +130,8 @@ def process_new_lead(lead_id, lead_status, lead_source):
                 source=lead_source,
                 template=template_name,
                 message_count=1,
-                result='success'
+                result='success',
+                campaign_type='auto'
             )
             
             # Update Zoho with note
@@ -148,29 +149,22 @@ def process_new_lead(lead_id, lead_status, lead_source):
         logger.error(f"Error processing new lead {lead_id}: {e}")
 
 
-@app.route('/daily-report', methods=['POST'])
-def trigger_daily_report():
-
-    @app.route('/check-new-leads', methods=['GET', 'POST'])
+@app.route('/check-new-leads', methods=['GET', 'POST'])
 def check_new_leads():
-    """Check for new leads and send WhatsApp"""
+    """Check for new leads and send WhatsApp (Polling Mode)"""
     try:
         logger.info("Checking for new leads...")
-        
-        # Get leads from last 10 minutes
-        from datetime import datetime, timedelta
-        time_threshold = datetime.now() - timedelta(minutes=10)
         
         # Get all leads
         all_leads = zoho.get_all_leads()
         
         # Get message history
         message_history = sheets.get_all_messages()
-        messaged_lead_ids = set(msg.get('lead_id') for msg in message_history)
+        messaged_lead_ids = set(str(msg.get('Lead ID')) for msg in message_history if msg.get('Lead ID'))
         
         # Find new leads (not yet messaged)
         new_leads = [lead for lead in all_leads 
-                    if lead.get('id') not in messaged_lead_ids]
+                    if str(lead.get('id')) not in messaged_lead_ids]
         
         results = {
             'checked': len(all_leads),
@@ -183,10 +177,10 @@ def check_new_leads():
         
         if not template_name:
             logger.warning("NEW_LEAD_TEMPLATE not configured")
-            return jsonify({'status': 'error', 'message': 'Template not configured'}), 400
+            return jsonify({'status': 'error', 'message': 'Template not configured', 'results': results}), 200
         
-        # Process new leads
-        for lead in new_leads[:10]:  # Limit to 10 per check
+        # Process new leads (limit to 10 per check)
+        for lead in new_leads[:10]:
             lead_id = lead.get('id')
             name = f"{lead.get('First_Name', '')} {lead.get('Last_Name', '')}".strip()
             phone = lead.get('Phone') or lead.get('Mobile')
@@ -235,7 +229,6 @@ def check_new_leads():
                 logger.error(f"Failed to send WhatsApp to lead {lead_id}")
             
             # Rate limiting
-            import time
             time.sleep(2)
         
         logger.info(f"Check complete: {results}")
@@ -244,6 +237,10 @@ def check_new_leads():
     except Exception as e:
         logger.error(f"Error checking new leads: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/daily-report', methods=['POST'])
+def trigger_daily_report():
     """Manually trigger daily report (also runs on schedule)"""
     try:
         generate_daily_report()
@@ -292,12 +289,13 @@ def analyze_cohorts(leads, message_history):
     # Create message count lookup
     message_counts = {}
     for msg in message_history:
-        lead_id = msg.get('lead_id')
-        message_counts[lead_id] = message_counts.get(lead_id, 0) + 1
+        lead_id = str(msg.get('Lead ID'))
+        if lead_id:
+            message_counts[lead_id] = message_counts.get(lead_id, 0) + 1
     
     # Categorize leads
     for lead in leads:
-        lead_id = lead.get('id')
+        lead_id = str(lead.get('id'))
         count = message_counts.get(lead_id, 0)
         status = lead.get('Lead_Status', 'Unknown')
         source = lead.get('Lead_Source', 'Unknown')
@@ -363,7 +361,7 @@ def execute_campaign(segment, template):
     try:
         logger.info(f"Executing campaign for segment: {segment}, template: {template}")
         
-        # Get leads for segment (implement segment logic)
+        # Get leads for segment
         leads = get_leads_for_segment(segment)
         
         results = {
@@ -404,7 +402,8 @@ def execute_campaign(segment, template):
                     source=lead.get('Lead_Source'),
                     template=template,
                     message_count=current_count,
-                    result='success'
+                    result='success',
+                    campaign_type='manual'
                 )
                 
                 # Update Zoho
@@ -431,21 +430,19 @@ def execute_campaign(segment, template):
 
 def get_leads_for_segment(segment):
     """Get leads matching segment criteria"""
-    # Parse segment string and fetch appropriate leads
-    # Example segments: "never_contacted", "first_message", "status:Contacted", etc.
-    
     all_leads = zoho.get_all_leads()
     message_history = sheets.get_all_messages()
     
     message_counts = {}
     for msg in message_history:
-        lead_id = msg.get('lead_id')
-        message_counts[lead_id] = message_counts.get(lead_id, 0) + 1
+        lead_id = str(msg.get('Lead ID'))
+        if lead_id:
+            message_counts[lead_id] = message_counts.get(lead_id, 0) + 1
     
     if segment == 'never_contacted':
-        return [l for l in all_leads if message_counts.get(l.get('id'), 0) == 0]
+        return [l for l in all_leads if message_counts.get(str(l.get('id')), 0) == 0]
     elif segment == 'first_message':
-        return [l for l in all_leads if message_counts.get(l.get('id'), 0) == 1]
+        return [l for l in all_leads if message_counts.get(str(l.get('id')), 0) == 1]
     elif segment.startswith('status:'):
         status = segment.split(':')[1]
         return [l for l in all_leads if l.get('Lead_Status') == status]
