@@ -150,6 +150,100 @@ def process_new_lead(lead_id, lead_status, lead_source):
 
 @app.route('/daily-report', methods=['POST'])
 def trigger_daily_report():
+
+    @app.route('/check-new-leads', methods=['GET', 'POST'])
+def check_new_leads():
+    """Check for new leads and send WhatsApp"""
+    try:
+        logger.info("Checking for new leads...")
+        
+        # Get leads from last 10 minutes
+        from datetime import datetime, timedelta
+        time_threshold = datetime.now() - timedelta(minutes=10)
+        
+        # Get all leads
+        all_leads = zoho.get_all_leads()
+        
+        # Get message history
+        message_history = sheets.get_all_messages()
+        messaged_lead_ids = set(msg.get('lead_id') for msg in message_history)
+        
+        # Find new leads (not yet messaged)
+        new_leads = [lead for lead in all_leads 
+                    if lead.get('id') not in messaged_lead_ids]
+        
+        results = {
+            'checked': len(all_leads),
+            'new_found': len(new_leads),
+            'sent': 0,
+            'failed': 0
+        }
+        
+        template_name = os.getenv('NEW_LEAD_TEMPLATE')
+        
+        if not template_name:
+            logger.warning("NEW_LEAD_TEMPLATE not configured")
+            return jsonify({'status': 'error', 'message': 'Template not configured'}), 400
+        
+        # Process new leads
+        for lead in new_leads[:10]:  # Limit to 10 per check
+            lead_id = lead.get('id')
+            name = f"{lead.get('First_Name', '')} {lead.get('Last_Name', '')}".strip()
+            phone = lead.get('Phone') or lead.get('Mobile')
+            status = lead.get('Lead_Status', 'Unknown')
+            source = lead.get('Lead_Source', 'Unknown')
+            
+            if not phone:
+                logger.warning(f"Lead {lead_id} has no phone")
+                results['failed'] += 1
+                continue
+            
+            # Send WhatsApp
+            result = aisensy.send_message(
+                phone=phone,
+                name=name,
+                template_params=[],
+                tags=['auto', status, source]
+            )
+            
+            if result['success']:
+                results['sent'] += 1
+                
+                # Track in sheets
+                sheets.log_message(
+                    lead_id=lead_id,
+                    name=name,
+                    phone=phone,
+                    status=status,
+                    source=source,
+                    template=template_name,
+                    message_count=1,
+                    result='success',
+                    campaign_type='auto'
+                )
+                
+                # Update Zoho
+                zoho.add_note(
+                    lead_id=lead_id,
+                    note_title="WhatsApp Sent - Auto",
+                    note_content=f"Sent on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\nTemplate: {template_name}"
+                )
+                
+                logger.info(f"WhatsApp sent to lead {lead_id}")
+            else:
+                results['failed'] += 1
+                logger.error(f"Failed to send WhatsApp to lead {lead_id}")
+            
+            # Rate limiting
+            import time
+            time.sleep(2)
+        
+        logger.info(f"Check complete: {results}")
+        return jsonify({'status': 'success', 'results': results}), 200
+        
+    except Exception as e:
+        logger.error(f"Error checking new leads: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
     """Manually trigger daily report (also runs on schedule)"""
     try:
         generate_daily_report()
